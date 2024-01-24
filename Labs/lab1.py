@@ -210,6 +210,8 @@ class RRPool(AnyPool):
 
             elif self.workers_timers[index] >= self.time_slicing:
                 self.workers_timers[index] = 0
+                # КОСТЫЛЬ, реализация сначала удаляет с выполнения потом оповещает ждунов
+                self.running_tasks[index].waiting_time -= 1
                 self.running_tasks[index] = None
 
         for task in finished_tasks:
@@ -225,7 +227,6 @@ class RRPool(AnyPool):
         max_waiting_time = -1
 
         for index, task in enumerate(self.tasks_queue):
-            print(task.owner, len(self.tasks_queue), max_waiting_time, task.get_waiting_time())
             if task.get_is_waiting() and max_waiting_time <= task.get_waiting_time():
                 max_waiting_time = task.get_waiting_time()
                 next_process = index
@@ -309,7 +310,6 @@ class Lab1:
         self.io1_pool = FCFSPool(1)
         self.io2_pool = FCFSPool(1)
 
-        '''
         self.processes = [
             Process(0, [CPU(6), IO1(14), CPU(6), IO1(20), CPU(2), IO1(14)]),
             Process(1, [CPU(2), IO2(20), CPU(6), IO1(18), CPU(6), IO2(20), CPU(10), IO1(12), CPU(6), IO1(20), CPU(4), IO1(10), CPU(4), IO1(14)]),
@@ -318,8 +318,9 @@ class Lab1:
             Process(4, [CPU(60), IO1(12), CPU(60), IO1(20), CPU(24), IO1(18), CPU(24), IO2(10), CPU(24), IO2(10)]),
             Process(5, [CPU(24), IO2(18), CPU(36), IO2(20), CPU(60), IO2(14), CPU(12), IO2(10), CPU(48), IO1(12)])
         ]
-        '''
 
+        '''
+        # Столлингс, работает
         self.processes = [
             Process(0, [CPU(3)]),
             Process(1, [CPU(6)]),
@@ -327,6 +328,7 @@ class Lab1:
             Process(3, [CPU(5)]),
             Process(4, [CPU(2)])
         ]
+        '''
 
         self.processes_in_system = []
 
@@ -409,7 +411,7 @@ class Lab1:
         return df
 
 
-cpu_count = 1
+cpu_count = 4
 out = Lab1(FCFSPool(cpu_count)).run()
 out.to_csv("./results/FCFS.csv")
 
