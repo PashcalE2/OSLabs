@@ -2,7 +2,7 @@ import pyarrow
 import pandas as pd
 
 
-# впринципе заменяемо на словарь но тогда код некрасивый
+# впринципе заменяемо на словарь, но тогда код некрасивый
 
 class Task:
     def __init__(self, owner: int, time: int):
@@ -433,22 +433,44 @@ class Lab1:
         return df
 
 
-cpu_count = 1
-out = Lab1(FCFSPool(cpu_count)).run()
-out.to_csv("./results/FCFS.csv")
+cpu_count = 4
+out1 = Lab1(FCFSPool(cpu_count)).run()
+out1.to_csv("./results/FCFS.csv")
 
-out = Lab1(SPNPool(cpu_count)).run()
-out.to_csv("./results/SPN.csv")
+out2 = Lab1(SPNPool(cpu_count)).run()
+out2.to_csv("./results/SPN.csv")
 
-out = Lab1(SRTPool(cpu_count)).run()
-out.to_csv("./results/SRT.csv")
+out3 = Lab1(SRTPool(cpu_count)).run()
+out3.to_csv("./results/SRT.csv")
 
-out = Lab1(RRPool(cpu_count, 1)).run()
-out.to_csv("./results/RR1.csv")
+out4 = Lab1(RRPool(cpu_count, 1)).run()
+out4.to_csv("./results/RR1.csv")
 
-out = Lab1(RRPool(cpu_count, 4)).run()
-out.to_csv("./results/RR4.csv")
+out5 = Lab1(RRPool(cpu_count, 4)).run()
+out5.to_csv("./results/RR4.csv")
 
-out = Lab1(HRRNPool(cpu_count)).run()
-out.to_csv("./results/HRRN.csv")
+out6 = Lab1(HRRNPool(cpu_count)).run()
+out6.to_csv("./results/HRRN.csv")
 
+
+difference = [[0 for j in range(6)] for i in range(6)]
+
+outs = [out1, out2, out3, out4, out5, out6]
+
+for method_id, out in enumerate(outs):
+    for process_id in range(6):
+        done_time = 0
+        for i in range(out.shape[0] - 1, 0, -1):
+            for j in range(out.shape[1]):
+                if len(out.values[i][j]) > 1:
+                    if int(out.values[i][j][1]) == process_id + 1:
+                        done_time = i + 1
+                        break
+            if done_time > 0:
+                break
+
+        difference[process_id][method_id] = done_time # - process_id * 2
+
+difference_df = pd.DataFrame(difference, columns=["FIFO", "SPN", "SRT", "RR 1", "RR 4", "HRRN"])
+
+print(difference_df)
