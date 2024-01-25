@@ -6,9 +6,13 @@ capacity = 5
 pages_order = [4, 8, 11, 2, 3, 17, 16, 22, 6, 4, 13, 7, 23, 7, 2, 18, 14, 22, 21, 5, 12, 13, 20, 10, 5, 2, 8, 6, 5, 2,
                11, 1, 6, 3, 12, 19, 18, 4, 9, 1, 23, 20, 1, 18, 20]
 
+'''
+# рандомный вариант
+
 capacity = 6
 pages_order = [7, 2, 20, 2, 5, 18, 20, 14, 18, 9, 15, 4, 5, 12, 17, 9, 4, 15, 9, 7, 18, 7, 21, 12, 8, 20, 21, 13, 1, 13,
                12, 9, 21, 20, 13, 8, 9, 15, 1, 15, 9, 4, 5]
+'''
 
 df_header = ["Кадр {}".format(i + 1) for i in range(capacity)] + ["Новая страница", "Замена"]
 
@@ -154,11 +158,7 @@ capacities = [i for i in range(1, max(pages_order) + 1)]
 
 calculations = [optimal(i, pages_order) for i in capacities]
 
-random.shuffle(pages_order)
-# page_faults_ratio = [pd.DataFrame(optimal(i, pages_order), columns=["Тик"] + ["Кадр {}".format(j + 1) for j in range(i)] + ["Новая страница", "Замена"])["Замена"].sum() / len(pages_order) for i in capacities]
 page_faults_ratio = [sum([calculations[i][j][-1] for j in range(len(calculations[i]))]) / len(pages_order) for i in range(len(calculations))]
-
-plt.plot(capacities, page_faults_ratio, "o-")
 
 print(page_faults_ratio)
 
@@ -168,3 +168,7 @@ for i, faults_ratio in enumerate(page_faults_ratio):
     if faults_ratio < max_page_faults_ratio:
         print(i + 1)
         break
+
+plt.plot(capacities, page_faults_ratio, "o-")
+plt.show()
+

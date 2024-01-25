@@ -18,7 +18,7 @@ class Task:
     def lock(self):
         self.is_waiting = False
 
-    def work(self):
+    def work_1_tick(self):
         self.waiting_time = 0
         if self.remaining_time > 0:
             self.remaining_time -= 1
@@ -32,7 +32,10 @@ class Task:
     def is_done(self):
         return self.remaining_time <= 0
 
-    def wait(self):
+    def set_is_waiting(self, is_waiting):
+        self.is_waiting = is_waiting
+
+    def wait_1_tick(self):
         self.is_waiting = True
         self.waiting_time += 1
 
@@ -63,6 +66,12 @@ class AnyPool:
         pass
 
     def displace_running_tasks(self):
+        '''
+            Вымещение отработавших (всё) своё время задач.
+            В том числе отвечает за замещение задач (running_task = None <=> задача ушла с выполнения).
+
+        '''
+
         finished_tasks = []
 
         for index, task in enumerate(self.running_tasks):
@@ -90,16 +99,16 @@ class AnyPool:
         # рабочие работают если у них есть задачи
         for task in self.running_tasks:
             if task is not None:
-                task.work()
-
-    def tick_wait_part(self):
-        # завершенные работы (когда всё время обслуживания выполненно) отходят от дел
-        finished_tasks = self.displace_running_tasks()
+                task.work_1_tick()
 
         # ждуны ждут
         for task in self.tasks_queue:
             if task not in self.running_tasks:
-                task.wait()
+                task.wait_1_tick()
+
+    def tick_displace_part(self):
+        # завершенные работы (когда всё время обслуживания выполненно) отходят от дел
+        finished_tasks = self.displace_running_tasks()
 
         # возвращаем что завершили
         return finished_tasks
@@ -165,7 +174,9 @@ class SRTPool(AnyPool):
                 pass
 
         for index, task in enumerate(self.running_tasks):
-            self.running_tasks[index] = None
+            if task is not None:
+                self.running_tasks[index].set_is_waiting(True)
+                self.running_tasks[index] = None
 
         return finished_tasks
 
@@ -194,34 +205,6 @@ class RRPool(AnyPool):
         self.time_slicing = time_slicing
         self.workers_timers = [0 for i in range(capacity)]
 
-    def displace_running_tasks(self):
-        finished_tasks = []
-
-        for index, task in enumerate(self.running_tasks):
-            if task is None:
-                continue
-
-            self.workers_timers[index] += 1
-
-            if task.is_done():
-                self.workers_timers[index] = 0
-                finished_tasks.append(task)
-                self.running_tasks[index] = None
-
-            elif self.workers_timers[index] >= self.time_slicing:
-                self.workers_timers[index] = 0
-                # КОСТЫЛЬ, реализация сначала удаляет с выполнения потом оповещает ждунов
-                self.running_tasks[index].waiting_time -= 1
-                self.running_tasks[index] = None
-
-        for task in finished_tasks:
-            try:
-                self.tasks_queue.remove(task)
-            except ValueError:
-                pass
-
-        return finished_tasks
-
     def get_and_lock_task_from_queue(self):
         next_process = -1
         max_waiting_time = -1
@@ -243,6 +226,33 @@ class RRPool(AnyPool):
             if task is None:
                 self.running_tasks[index] = self.get_and_lock_task_from_queue()
                 self.workers_timers[index] = 0
+
+    def displace_running_tasks(self):
+        finished_tasks = []
+
+        for index, task in enumerate(self.running_tasks):
+            if task is None:
+                continue
+
+            self.workers_timers[index] += 1
+
+            if task.is_done():
+                self.workers_timers[index] = 0
+                finished_tasks.append(task)
+                self.running_tasks[index] = None
+
+            elif self.workers_timers[index] >= self.time_slicing:
+                self.workers_timers[index] = 0
+                self.running_tasks[index].set_is_waiting(True)
+                self.running_tasks[index] = None
+
+        for task in finished_tasks:
+            try:
+                self.tasks_queue.remove(task)
+            except ValueError:
+                pass
+
+        return finished_tasks
 
 
 # для удобной записи входных значений
@@ -320,6 +330,18 @@ class Lab1:
         ]
 
         '''
+        # рандомный вариант
+        self.processes = [
+            Process(0, [CPU(60), IO1(18), CPU(36), IO2(20), CPU(36), IO2(10), CPU(12), IO1(16), CPU(12), IO1(12), CPU(12), IO1(12)]),
+            Process(1, [CPU(10), IO2(20), CPU(10), IO2(16), CPU(4), IO2(14), CPU(10), IO2(16)]),
+            Process(2, [CPU(4), IO2(12), CPU(10), IO2(10), CPU(4), IO2(10), CPU(2), IO1(14)]),
+            Process(3, [CPU(4), IO2(16), CPU(4), IO2(18), CPU(2), IO2(18), CPU(4), IO1(20)]),
+            Process(4, [CPU(8), IO2(20), CPU(4), IO1(12), CPU(4), IO2(20), CPU(2), IO1(14), CPU(2), IO2(20)]),
+            Process(5, [CPU(24), IO2(18), CPU(36), IO1(20), CPU(24), IO2(14), CPU(12), IO1(18), CPU(36), IO1(12)]),
+        ]
+        '''
+
+        '''
         # Столлингс, работает
         self.processes = [
             Process(0, [CPU(3)]),
@@ -381,9 +403,9 @@ class Lab1:
         self.io1_pool.tick_work_part()
         self.io2_pool.tick_work_part()
 
-        cpu_results = self.cpu_pool.tick_wait_part()
-        io1_results = self.io1_pool.tick_wait_part()
-        io2_results = self.io2_pool.tick_wait_part()
+        cpu_results = self.cpu_pool.tick_displace_part()
+        io1_results = self.io1_pool.tick_displace_part()
+        io2_results = self.io2_pool.tick_displace_part()
         results = cpu_results + io1_results + io2_results
 
         # процессы понимают что их текущие задачи выполнены и готовят указатель на следующие
