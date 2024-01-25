@@ -433,7 +433,7 @@ class Lab1:
         return df
 
 
-cpu_count = 4
+cpu_count = 1
 out = Lab1(FCFSPool(cpu_count)).run()
 out.to_csv("./results/FCFS.csv")
 
