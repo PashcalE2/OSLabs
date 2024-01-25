@@ -1,6 +1,5 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import random
 
 capacity = 5
 pages_order = [4, 8, 11, 2, 3, 17, 16, 22, 6, 4, 13, 7, 23, 7, 2, 18, 14, 22, 21, 5, 12, 13, 20, 10, 5, 2, 8, 6, 5, 2,
